@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--DAO类路径-->
+<mapper namespace="com.demo.rbac.mapper.RoleMapper" >
+
+    <sql id="BASE_TABLE">role</sql>
+    <sql id="BASE_COLUMN">
+        id as role_id,
+        serial_id,
+        role_level,
+        role_name,
+        created_by,
+        updated_by,
+        created_at,
+        updated_at
+    </sql>
+
+    <sql id="ADD_COLUMN">
+        <trim suffixOverrides=",">
+            <if test="roleLevel!=null">
+                role_level,
+            </if>
+            <if test="roleName!=null">
+                role_name,
+            </if>
+            <if test="createdBy!=null">
+                created_by,
+            </if>
+            <if test="updatedBy!=null">
+                updated_by,
+            </if>
+            <if test="createdAt!=null">
+                created_at,
+            </if>
+            <if test="updatedAt!=null">
+                updated_at,
+            </if>
+        </trim>
+    </sql>
+
+    <resultMap id="RoleMap" type="Role">
+        <id property="id" column="role_id"/>
+        <result property="serialId" column="serial_id"/>
+        <result property="roleLevel" column="role_level"/>
+        <result property="roleName" column="role_name"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <collection property="modules" ofType="com.demo.rbac.entity.Module">
+            <id property="id" column="module_id"/>
+            <result property="moduleName" column="module_name"/>
+        </collection>
+    </resultMap>
+
+    <!--查询角色列表-->
+    <select id="selectAll" resultMap="RoleMap" parameterType="long">
+        SELECT
+        <include refid="BASE_COLUMN"/>
+        from
+        <include refid="BASE_TABLE"/>
+    </select>
+
+    <!--根据角色名查询角色id:设置查询不到时返回值默认为0-->
+    <select id="selectRoleIdByRoleName" resultType="long" parameterType="String">
+        select ifnull(
+          (select id from
+          <include refid="BASE_TABLE"/>
+          where role_name=#{roleName})
+        ,0)
+    </select>
+
+    <!--根据账户查询角色名-->
+    <select id="selectRoleByAccount" resultType="String" parameterType="String">
+      SELECT role.role_name from manager
+      LEFT JOIN manager_role on (manager.id=manager_role.user_id)
+      LEFT JOIN role on (manager_role.role_id=role.id)
+      where manager.account=#{account};
+    </select>
+
+    <!--查询所有角色名：去重-->
+    <select id="selectRoleName" resultType="String">
+        select role_name from
+        <include refid="BASE_TABLE"/>
+        group by role_name
+    </select>
+
+    <!--多条件查询-->
+    <select id="selectDynamic" resultMap="RoleMap" parameterType="Role">
+        SELECT
+        <include refid="BASE_COLUMN"/>
+        from
+        <include refid="BASE_TABLE"/>
+        <where>
+            <if test="serialId!=null">
+                serial_id like "%"#{serialId}"%"
+            </if>
+            <if test="roleName!=null">
+                and role_name like "%"#{roleName}"%"
+            </if>
+            <if test="createdBy!=null">
+                and created_by like "%"#{createdBy}"%"
+            </if>
+            <if test="updatedBy!=null">
+                and updated_by like "%"#{updatedBy}"%"
+            </if>
+        </where>
+    </select>
+
+    <!--添加角色-->
+    <insert id="addRole" parameterType="com.demo.rbac.vo.RoleJoin"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into
+        <include refid="BASE_TABLE"/>
+        (
+          <include refid="ADD_COLUMN"/>
+        )
+        values(
+        <trim suffixOverrides=",">
+            <if test="roleLevel!=null">
+                #{roleLevel},
+            </if>
+            <if test="roleName!=null">
+                #{roleName},
+            </if>
+            <if test="createdBy!=null">
+                #{createdBy},
+            </if>
+            <if test="updatedBy!=null">
+                #{updatedBy},
+            </if>
+            <if test="createdAt!=null">
+                #{createdAt},
+            </if>
+            <if test="updatedAt!=null">
+                #{updatedAt},
+            </if>
+        </trim>
+        )
+    </insert>
+
+    <!--角色名判重-->
+    <select id="selectRoleNameRepeat" parameterType="String" resultType="int">
+        SELECT COUNT(1) from
+        <include refid="BASE_TABLE"/>
+        where role_name=#{roleName}
+    </select>
+
+   <!--更新角色-->
+    <update id="updateRole" parameterType="com.demo.rbac.vo.RoleJoin">
+        update
+        <include refid="BASE_TABLE"/>
+        <set>
+            <if test="roleLevel!=null">
+                role_level = #{roleLevel},
+            </if>
+            <if test="roleName!=null">
+                role_name = #{roleName},
+            </if>
+            <if test="updatedBy!=null">
+                updated_by = #{updatedBy},
+            </if>
+            <if test="updatedAt!=null">
+                updated_at = #{updatedAt},
+            </if>
+        </set>
+        WHERE
+        id = #{id}
+    </update>
+
+    <!--删除角色-->
+    <delete id="deleteRole" parameterType="long">
+        delete from
+        <include refid="BASE_TABLE"/>
+        where id=#{id}
+    </delete>
+
+    <!--根据账户id获取最高角色等级与角色名：集合-->
+    <select id="selectRoleLevelById" resultMap="RoleMap" parameterType="long">
+        select role_level ,role_name from manager
+        LEFT JOIN manager_role on (manager.id=manager_role.user_id)
+        LEFT JOIN role on (manager_role.role_id=role.id)
+        where manager.id=#{id} and role_level = (select min(role_level) from manager
+        LEFT JOIN manager_role on (manager.id=manager_role.user_id)
+        LEFT JOIN role on (manager_role.role_id=role.id)
+        where manager.id=#{id})
+    </select>
+
+    <!--根据角色名获取角色等级-->
+    <select id="selectRoleLevelByRoleName" resultType="int" parameterType="String">
+        select role_level from
+        <include refid="BASE_TABLE"/>
+        where role_name=#{roleName}
+    </select>
+
+    <!--根据角色id查询角色是否存在-->
+    <select id="selectRoleExistByRoleId" resultType="int" parameterType="long">
+        select count(1) from
+        <include refid="BASE_TABLE"/>
+        where id=#{id}
+    </select>
+
+    <!--根据角色ID出现就是名与角色等级-->
+    <select id="selectRoleNameAndRoleLevelByRoleId" resultMap="RoleMap" parameterType="long">
+        select role_name,role_level from
+        <include refid="BASE_TABLE"/>
+        where id=#{roleId}
+    </select>
+
+    <select id="selectRoleByRoleId" parameterType="Long" resultMap="RoleMap">
+      select
+      role.id as role_id,
+      role.role_name,
+      role_module.module_name,
+      role_module.id as module_id
+      from role
+      LEFT JOIN role_module on (role.id=role_module.role_id)
+      where role.id=#{id}
+    </select>
+</mapper>

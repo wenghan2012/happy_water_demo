@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--DAO类路径-->
+<mapper namespace="com.demo.rbac.mapper.ManagerMapper" >
+
+    <sql id="BASE_TABLE">manager</sql>
+    <sql id="BASE_ROLE_TABLE">role</sql>
+    <sql id="BASE_ROLE_MANAGER_TABLE">manager_role</sql>
+    <sql id="BASE_COLUMN">
+        manager.id as m_id,
+        manager.serial_id,
+        manager.account,
+        role.id as r_id,
+        role.role_name,
+        manager.is_locked,
+        manager.created_by,
+        manager.updated_at,
+        manager.created_at,
+        manager.updated_by
+    </sql>
+
+    <sql id="BASE_MANAGER">
+        <trim suffixOverrides=",">
+            <if test="account!=null">
+                account,
+            </if>
+            <if test="password!=null">
+                password,
+            </if>
+            <if test="salt!=null">
+                salt,
+            </if>
+            <if test="locked!=null">
+                is_locked,
+            </if>
+            <if test="createdBy!=null">
+                created_by,
+            </if>
+            <if test="updatedBy!=null">
+                updated_by,
+            </if>
+            <if test="createdAt!=null">
+                created_at,
+            </if>
+            <if test="updatedAt!=null">
+                updated_at,
+            </if>
+        </trim>
+    </sql>
+
+    <resultMap id="ManagerMap" type="Manager">
+        <id property="id" column="m_id"/>
+        <result property="serialId" column="serial_id"/>
+        <result property="account" column="account"/>
+        <result property="password" column="password"/>
+        <result property="salt" column="salt"/>
+        <result property="locked" column="is_locked"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <collection property="roles" ofType="com.demo.rbac.entity.Role">
+            <id property="id" column="r_id"/>
+            <result property="roleName" column="role_name"/>
+            <result property="roleLevel" column="role_level"/>
+        </collection>
+    </resultMap>
+
+    <!--联表查询列表-->
+    <select id="selectAll" resultMap="ManagerMap">
+        SELECT
+        <include refid="BASE_COLUMN"/>
+        from
+        <include refid="BASE_TABLE"/>
+        LEFT JOIN
+        <include refid="BASE_ROLE_MANAGER_TABLE"/>
+        ON (manager.id=manager_role.user_id)
+        LEFT JOIN
+        <include refid="BASE_ROLE_TABLE"/>
+        ON (role.id=manager_role.role_id)
+    </select>
+
+    <!--多条件查询-->
+    <select id="selectDynamic" resultMap="ManagerMap" parameterType="com.demo.rbac.vo.ManagerDynamic">
+        SELECT
+        <include refid="BASE_COLUMN"/>
+        from
+        <include refid="BASE_TABLE"/>
+        LEFT JOIN
+        <include refid="BASE_ROLE_MANAGER_TABLE"/>
+        ON (manager.id=manager_role.user_id)
+        LEFT JOIN
+        <include refid="BASE_ROLE_TABLE"/>
+        ON (role.id=manager_role.role_id)
+        <where>
+        <if test="serialId != null">
+            manager.serial_id like "%"#{serialId}"%"
+        </if>
+        <if test="roleName != null">
+        and    role.role_name = #{roleName}
+        </if>
+        <if test="account != null">
+        and    manager.account like "%"#{account}"%"
+        </if>
+        <if test="createdBy != null">
+        and   manager.created_by like "%"#{createdBy}"%"
+        </if>
+        </where>
+    </select>
+
+    <!--更新密码-->
+    <update id="updatePwdById" parameterType="com.demo.rbac.entity.Manager">
+        update
+        <include refid="BASE_TABLE"/>
+        SET password = #{password},salt=#{salt} WHERE id = #{id}
+    </update>
+
+    <!--查询账户名-->
+    <select id="selectAccountById" resultType="String" parameterType="long">
+        SELECT account from manager where id=#{id};
+    </select>
+
+    <!--账户名判重-->
+    <select id="selectAccountRepeat" parameterType="String" resultType="int">
+        SELECT COUNT(1) from
+        <include refid="BASE_TABLE"/>
+        where account=#{account}
+    </select>
+
+    <!--添加账户:动态-->
+    <insert id="addManager" parameterType="com.demo.rbac.vo.ManagerJoin"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO
+        <include refid="BASE_TABLE"/>(
+          <include refid="BASE_MANAGER"/>
+        )
+        VALUES
+        (
+        <trim suffixOverrides=",">
+            <if test="account!=null">
+                #{account},
+            </if>
+            <if test="password!=null">
+                #{password},
+            </if>
+            <if test="salt!=null">
+                #{salt},
+            </if>
+            <if test="locked!=null">
+                #{locked},
+            </if>
+            <if test="createdBy!=null">
+                #{createdBy},
+            </if>
+            <if test="updatedBy!=null">
+                #{updatedBy},
+            </if>
+            <if test="createdAt!=null">
+                #{createdAt},
+            </if>
+            <if test="updatedAt!=null">
+                #{updatedAt});
+            </if>
+        </trim>
+    </insert>
+
+    <!--编辑账户-->
+    <update id="upManager" parameterType="com.demo.rbac.vo.ManagerJoin" >
+        update
+        <include refid="BASE_TABLE"/>
+        <set>
+            <if test="account!=null">
+                account = #{account},
+            </if>
+            <if test="password!=null">
+                password = #{password},
+            </if>
+            <if test="salt!=null">
+                salt = #{salt},
+            </if>
+            <if test="locked!=null">
+                is_locked = #{locked},
+            </if>
+            <if test="updatedBy!=null">
+                updated_by = #{updatedBy},
+            </if>
+            <if test="updatedAt!=null">
+                updated_at = #{updatedAt}
+            </if>
+        </set>
+        WHERE
+        id = #{id}
+    </update>
+
+    <!--登录接口，通过账号查询密码和盐,以及冻结状态-->
+    <select id="login" parameterType="String" resultMap="ManagerMap">
+        SELECT manager.`password`,manager.salt,is_locked from
+        <include refid="BASE_TABLE"/>
+        where account=#{account}
+    </select>
+
+    <!--根据账户名查询id-->
+    <select id="selectIdByAccount" parameterType="String" resultType="long">
+        SELECT manager.id from manager where manager.account=#{account};
+    </select>
+
+    <!--根据账户名查询账户id与角色名、角色等级、角色id-->
+    <select id="selectManagerByAccount" resultMap="ManagerMap" parameterType="String">
+        SELECT
+        manager.id as m_id,
+        role.id as r_id,
+        role.role_name as role_name,
+        role.role_level as role_level
+        from manager
+        LEFT JOIN manager_role on (manager.id=manager_role.user_id)
+        LEFT JOIN role on (manager_role.role_id=role.id)
+        where manager.account=#{account} and role_level=(SELECT
+        min(role.role_level) from manager
+        LEFT JOIN manager_role on (manager.id=manager_role.user_id)
+        LEFT JOIN role on (manager_role.role_id=role.id)
+        where manager.account=#{account});
+    </select>
+
+    <!--根据id删除账户-->
+    <delete id="deleteAccount" parameterType="long">
+        delete from
+        <include refid="BASE_TABLE"/>
+        where
+        id=#{id}
+    </delete>
+
+    <!--根据账户id查询账户是否存在-->
+    <select id="selectManagerExistByManagerId" parameterType="long" resultType="int">
+        select count(1) from
+        <include refid="BASE_TABLE"/>
+        where id=#{id}
+    </select>
+
+    <!--根据账户id查询冻结状态-->
+    <select id="selectLockedByManagerAccount" parameterType="String" resultType="Boolean">
+        select manager.is_locked FROM manager
+        where account = #{account}
+    </select>
+
+    <!--根据账户id查询密码与盐值-->
+    <select id="selectPasswordAndSaltByManagerId" parameterType="Long" resultMap="ManagerMap">
+        SELECT manager.`password`,manager.salt from
+        <include refid="BASE_TABLE"/>
+        where manager.id = #{id}
+    </select>
+
+    <!--根据账号ID查询账户-->
+    <select id="selectManagerByManagerId" parameterType="Long" resultMap="ManagerMap">
+      select
+      manager.id as m_id,
+      manager.account as account,
+      manager.is_locked as is_locked,
+      role.id as r_id,
+      role.role_name as role_name
+      from manager
+      LEFT JOIN manager_role on (manager.id=manager_role.user_id)
+      LEFT JOIN role on (role.id=manager_role.role_id)
+      where manager.id=#{id}
+    </select>
+
+</mapper>

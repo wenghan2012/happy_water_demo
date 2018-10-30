@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--DAO类路径-->
+<mapper namespace="com.demo.rbac.mapper.ModuleMapper" >
+
+    <sql id="BASE_TABLE">module</sql>
+    <sql id="BASE_COLUMN">
+        id,
+        serial_id,
+        module_level,
+        module_name,
+        module_url,
+        url,
+        father_module,
+        module_type,
+        created_by,
+        updated_by,
+        created_at,
+        updated_at
+  </sql>
+
+    <sql id="BASE_Dynamic_COLUMN">
+        t1.id,
+        t1.serial_id,
+        t1.module_level,
+        t1.module_name,
+        t1.module_url,
+        t1.url,
+        t1.father_module,
+        t1.module_type,
+        t1.created_by,
+        t1.updated_by,
+        t1.created_at,
+        t1.updated_at
+  </sql>
+
+    <resultMap id="ModuleMap" type="Module">
+        <id property="id" column="id"/>
+        <result property="serialId" column="serial_id"/>
+        <result property="moduleLevel" column="module_level"/>
+        <result property="moduleName" column="module_name"/>
+        <result property="moduleUrl" column="module_url"/>
+        <result property="url" column="url"/>
+        <result property="fatherModule" column="father_module"/>
+        <result property="moduleType" column="module_type"/>
+        <result property="createdBy" column="created_by"/>
+        <result property="updatedBy" column="updated_by"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <resultMap id="ModuleJoinMap" type="com.demo.rbac.vo.ModuleJoin">
+        <id property="id" column="id"/>
+        <result property="moduleName" column="name"/>
+        <result property="moduleUrl" column="url"/>
+        <collection property="SonModule" ofType="com.demo.rbac.vo.ModuleJoin"/>
+    </resultMap>
+
+    <!--模块列表-->
+    <select id="selectAll" resultMap="ModuleMap" parameterType="long">
+        SELECT
+        <include refid="BASE_COLUMN"/>
+        from
+        <include refid="BASE_TABLE"/>
+    </select>
+
+    <!--根据账户名获取模块(权限)-->
+    <select id="selectModuleByAccount" resultType="String" parameterType="String">
+        SELECT module.url from manager
+        LEFT JOIN manager_role on (manager.id=manager_role.user_id)
+        LEFT JOIN role_module on (manager_role.role_id=role_module.role_id)
+        LEFT JOIN module on (role_module.module_name=module.module_name)
+        where manager.account=#{account};
+    </select>
+
+    <!--多条件查询-->
+    <select id="selectDynamic" resultMap="ModuleMap" parameterType="com.demo.rbac.vo.ModuleDynamic">
+        SELECT
+        <include refid="BASE_Dynamic_COLUMN"/>
+        from
+        <include refid="BASE_TABLE"/>
+        as t1
+        LEFT JOIN
+        <include refid="BASE_TABLE"/>
+        as t2
+        on(t1.father_module=t2.id)
+        <where>
+            <if test="moduleId != null">
+                t1.serial_id like "%"#{moduleId}"%"
+            </if>
+            <if test="moduleName != null">
+            and t1.module_name like "%"#{moduleName}"%"
+            </if>
+            <if test="moduleFatherName != null">
+            and t2.module_name like "%"#{moduleFatherName}"%"
+            </if>
+            <if test="createdBy != null">
+            and t1.created_by like "%"#{createdBy}"%"
+            </if>
+        </where>
+    </select>
+
+    <!--添加模块:动态-->
+    <insert id="addModule" parameterType="Module">
+      insert into
+        <include refid="BASE_TABLE"/> (
+        <trim suffixOverrides=",">
+            <if test="moduleName!=null">
+               module_name,
+            </if>
+            <if test="moduleLevel!=null">
+                module_level,
+            </if>
+            <if test="moduleUrl!=null">
+                module_url,
+            </if>
+            <if test="fatherModule!=null">
+                father_module,
+            </if>
+            <if test="moduleType!=null">
+                module_type,
+            </if>
+            <if test="createdBy!=null">
+                created_by,
+            </if>
+            <if test="updatedBy!=null">
+                updated_by,
+            </if>
+            <if test="createdAt!=null">
+                created_at,
+            </if>
+            <if test="updatedAt!=null">
+                updated_at,
+            </if>
+        </trim>
+        )
+        values (
+        <trim suffixOverrides=",">
+            <if test="moduleName!=null">
+                #{moduleName},
+            </if>
+            <if test="moduleLevel!=null">
+                #{moduleLevel},
+            </if>
+            <if test="moduleUrl!=null">
+                #{moduleUrl},
+            </if>
+            <if test="fatherModule!=null">
+                #{fatherModule},
+            </if>
+            <if test="moduleType!=null">
+                #{moduleType},
+            </if>
+            <if test="createdBy!=null">
+                #{createdBy},
+            </if>
+            <if test="updatedBy!=null">
+                #{updatedBy},
+            </if>
+            <if test="createdAt!=null">
+                #{createdAt},
+            </if>
+            <if test="updatedAt!=null">
+                #{updatedAt},
+            </if>
+        </trim>
+        )
+    </insert>
+
+    <!--根据模块id查询模块的等级-->
+    <select id="selectModuleLevelById" resultType="Integer" parameterType="Long">
+        select module_level from
+        <include refid="BASE_TABLE"/>
+        where id=#{id}
+    </select>
+
+    <!--模块名判重-->
+    <select id="selectModuleRepeat" parameterType="String" resultType="int">
+        SELECT COUNT(1) from
+        <include refid="BASE_TABLE"/>
+        where Module_name=#{ModuleName}
+    </select>
+
+    <!--编辑账户-->
+    <update id="upModule" parameterType="Module" >
+        update
+        <include refid="BASE_TABLE"/>
+        <set>
+            <if test="moduleName!=null">
+                module_name = #{moduleName},
+            </if>
+            <if test="moduleLevel!=null">
+                module_level= #{moduleLevel},
+            </if>
+            <if test="moduleUrl!=null">
+                module_url = #{moduleUrl},
+            </if>
+            <if test="fatherModule!=null">
+                father_module = #{fatherModule},
+            </if>
+            <if test="moduleType!=null">
+                module_type = #{moduleType},
+            </if>
+            <if test="updatedBy!=null">
+                updated_by = #{updatedBy},
+            </if>
+            <if test="updatedAt!=null">
+                updated_at = #{updatedAt}
+            </if>
+        </set>
+        WHERE
+        id = #{id}
+    </update>
+
+    <!--根据id删除模块-->
+    <delete id="deleteModule" parameterType="long">
+        delete from
+        <include refid="BASE_TABLE"/>
+        where
+        id=#{id}
+    </delete>
+
+    <!--根据模块id查询模块名-->
+    <select id="selectModuleNameById" resultType="String" parameterType="long">
+        select module_name from
+        <include refid="BASE_TABLE"/>
+        where
+        id=#{id}
+    </select>
+
+    <!--查询模块名和模块等级，根据模块Id-->
+    <select id="selectModuleNameAndLevelById" resultMap="ModuleMap" parameterType="long">
+        select module_name,module_level from
+        <include refid="BASE_TABLE"/>
+        where
+        id=#{id}
+    </select>
+
+    <!--根据账户id和父模块id获取子模块-->
+    <select id="selectTopModuleById" resultMap="ModuleJoinMap" parameterType="long">
+      SELECT
+      module.id as id,
+      module.module_name as name,
+      module.module_url as url
+      from manager
+      LEFT JOIN manager_role on (manager.id=manager_role.user_id)
+      LEFT JOIN role_module on (manager_role.role_id=role_module.role_id)
+      LEFT JOIN module on (role_module.module_name=module.module_name)
+      where manager.id=#{id} and module.father_module=#{fatherModuleId}
+    </select>
+
+    <!--根据模块id判断模块是否存在-->
+    <select id="selectModuleExistByModuleId" parameterType="long" resultType="int">
+        select count(1) from
+        <include refid="BASE_TABLE"/>
+        where id=#{id}
+    </select>
+
+    <!--根据模块名获取父模块-->
+    <select id="selectFatherModuleByModuleName" parameterType="String" resultMap="ModuleMap">
+        SELECT t2.module_name as module_name,
+        t2.module_level as module_level
+        FROM module as t1
+        LEFT JOIN module as t2 on (t1.father_module = t2.id)
+        where t1.module_name=#{moduleName}
+    </select>
+
+    <!--根据模块id获取子模块-->
+    <select id="selectSonModuleByModuleId" parameterType="Long" resultType="Long">
+        select module.id from module
+        where module.father_module=#{fatherModule}
+    </select>
+
+    <!--根据模块id集合批量查询模块name集合-->
+    <select id="selectModulesByModuleId" resultType="String" parameterType="Long">
+        SELECT module_name from module
+        WHERE id in
+        <foreach collection="sonIds" item="dramaId" open="(" close=")" separator=",">
+        #{dramaId}
+        </foreach>
+    </select>
+
+    <!-- 批量删除模块 -->
+    <delete id="deleteModules" parameterType="Long">
+        delete from Module where id in
+        <foreach collection="sonIds" item="arr" index="no" open="("
+                 separator="," close=")">
+            #{arr}
+        </foreach>
+    </delete>
+
+    <!--编辑显示接口-->
+    <select id="selectModuleByModuleId" parameterType="Long" resultMap="ModuleMap">
+        select
+        module.module_name as module_name,
+        module.module_url as module_url,
+        module.father_module as father_module,
+        module.module_type as module_type
+        from module
+        where module.id=#{ModuleId}
+    </select>
+
+</mapper>

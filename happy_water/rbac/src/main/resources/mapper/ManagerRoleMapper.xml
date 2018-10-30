@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--DAO类路径-->
+<mapper namespace="com.demo.rbac.mapper.ManagerRoleMapper" >
+
+    <sql id="BASE_TABLE">manager_role</sql>
+    <sql id="BASE_COLUMN">
+        id
+        user_id,
+        role_id,
+        created_at,
+        updated_at
+    </sql>
+
+    <resultMap id="ManagerRoleMqp" type="ManagerRole">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="roleId" column="role_id"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!--批量插入用户角色映射记录-->
+    <insert id="insertRecord" parameterType="ManagerRole">
+        INSERT INTO
+        <include refid="BASE_TABLE"/>
+        (user_id,role_id,created_at,updated_at)
+        value
+        <foreach collection="list" item="item" separator=",">
+            (#{item.userId},#{item.roleId},#{item.createdAt},#{item.updatedAt})
+        </foreach>
+    </insert>
+
+    <!--根据账户id删除映射记录-->
+    <delete id="deleteRecord" parameterType="long">
+        delete from
+        <include refid="BASE_TABLE"/>
+        where
+        user_id=#{userId}
+    </delete>
+
+    <!--根据角色id删除映射记录-->
+    <delete id="deleteRecordByRoleId" parameterType="long">
+        delete from
+        <include refid="BASE_TABLE"/>
+        where
+        role_id=#{roleId}
+    </delete>
+
+    <!--根据角色id查询用户id-->
+    <select id="selectUserIDByRoleId" parameterType="long" resultType="long">
+        select user_id from
+        <include refid="BASE_TABLE"/>
+        where
+        role_id=#{roleId}
+    </select>
+</mapper>

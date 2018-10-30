@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<!--DAO类路径-->
+<mapper namespace="com.demo.rbac.mapper.RoleModuleMapper" >
+
+    <sql id="BASE_TABLE">role_module</sql>
+    <sql id="BASE_COLUMN">
+        id,
+        role_id,
+        module_name,
+        created_at,
+        updated_at
+    </sql>
+
+    <resultMap id="RoleModuleMap" type="RoleModule">
+        <id property="id" column="id"/>
+        <result property="roleId" column="role_id"/>
+        <result property="moduleName" column="module_name"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <!--批量插入角色模块映射记录-->
+    <insert id="addRecord" parameterType="RoleModule">
+        insert into
+        <include refid="BASE_TABLE"/>
+        (role_id,module_name,created_at,updated_at)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.roleId},#{item.moduleName},#{item.createdAt},#{item.updatedAt})
+        </foreach>
+    </insert>
+
+    <!--根据角色id删除角色模块映射表-->
+    <delete id="deleteRecord" parameterType="long">
+      delete from
+      <include refid="BASE_TABLE"/>
+        where
+        role_id=#{roleId}
+    </delete>
+
+    <!--根据模块名删除角色模块映射表-->
+    <delete id="deleteRecordBymoduleName" parameterType="String">
+        delete from
+        <include refid="BASE_TABLE"/>
+        where
+        module_name=#{moduleName}
+    </delete>
+
+    <!-- 批量删除模块角色映射表记录-->
+    <delete id="deleteRoleModulesByModuleName" parameterType="long">
+        delete from
+        <include refid="BASE_TABLE"/>
+        where module_name
+        <foreach collection="sonNanes" item="arr" index="no" open="("
+                 separator="," close=")">
+            #{arr}
+        </foreach>
+    </delete>
+
+    <!--根据模块名获取具有该模块权限的账户id-->
+    <select id="selectManagerIdByModuleName" resultType="long" parameterType="String">
+        select manager.id from manager
+        LEFT JOIN manager_role on (manager.id=manager_role.user_id)
+        LEFT JOIN role_module on (manager_role.role_id=role_module.role_id)
+        where role_module.module_name=#{moduleName}
+    </select>
+
+</mapper>
